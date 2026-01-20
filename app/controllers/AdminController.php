@@ -54,16 +54,43 @@ class AdminController {
     }
 
     public function toggleUser() {
-        if ($_SESSION['role'] !== 'admin') die("Access Denied");
+        // 1. Security Check
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+            die("Access Denied");
+        }
+
         $id = $_GET['id'];
-        $status = $_GET['status']; // 1 = Active, 0 = Blocked
+
+        $database = new Database();
+        $db = $database->getConnection();
+        $userModel = new User($db);
+
+        // 2. Toggle Status
+        if ($userModel->toggleStatus($id)) {
+            header("Location: index.php?action=admin_dashboard&msg=user_updated");
+        } else {
+            echo "Error updating user.";
+        }
+    }
+
+    public function deleteGame() {
+        // 1. Security Check
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+            die("Access Denied");
+        }
+
+        $id = $_GET['id'];
         
         $database = new Database();
         $db = $database->getConnection();
-        $user = new User($db);
-        
-        $user->toggleStatus($id, $status);
-        header("Location: index.php?action=admin_dashboard");
+        $game = new Game($db);
+
+        // 2. Perform Delete
+        if ($game->delete($id)) {
+            header("Location: index.php?action=admin_dashboard&msg=deleted");
+        } else {
+            echo "Error deleting game.";
+        }
     }
 }
 ?>

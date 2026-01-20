@@ -118,6 +118,16 @@ class GameController {
         $stmt->execute();
         $game = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // Coupon Logic
+        $discount = 0;
+        $final_price = $game['price'];
+
+        if(isset($_SESSION['discount_percent'])) {
+            $discount = $_SESSION['discount_percent'];
+            $discount_amount = ($game['price'] * $discount) / 100;
+            $final_price = $game['price'] - $discount_amount;
+        }
+
         include __DIR__ . '/../views/buyer/checkout.php';
     }
 
@@ -140,6 +150,10 @@ class GameController {
         }
 
         if ($order->createOrder($user_id, $game_id, $amount)) {
+            // Clear Coupon
+            unset($_SESSION['coupon_code']);
+            unset($_SESSION['discount_percent']);
+
             header("Location: index.php?action=my_library&status=purchased");
         } else {
             echo "Payment Failed.";
@@ -322,6 +336,53 @@ class GameController {
 
         // Reuse the home view but with filtered results
         include __DIR__ . '/../views/home.php';
+    }
+
+    public function applyCoupon() {
+        if (!isset($_SESSION['user_id'])) die("Access Denied");
+
+        $code = $_POST['coupon_code'];
+        $game_id = $_POST['game_id'];
+
+        $database = new Database();
+        $db = $database->getConnection();
+        $couponModel = new Coupon($db);
+
+        $coupon = $couponModel->getCoupon($code);
+
+        if ($coupon) {
+            $_SESSION['coupon_code'] = $coupon['code'];
+            $_SESSION['discount_percent'] = $coupon['discount_percent'];
+            header("Location: index.php?action=checkout&id=$game_id&msg=coupon_valid");
+        } else {
+            header("Location: index.php?action=checkout&id=$game_id&error=invalid_coupon");
+        }
+    }
+
+    public function delete() {
+        // 1. Security Check
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'seller') {
+            die("Access Denied");
+        }
+
+        $id = $_GET['id'];
+        
+        $database = new Database();
+        $db = $database->getConnection();
+        $gameModel = new Game($db);
+
+        // 2. Check Ownership (Don't let Seller A delete Seller B's game)
+        $game = $gameModel->getGameById($id);
+        if($game['seller_id'] != $_SESSION['user_id']) {
+            die("Error: You do not own this game.");
+        }
+
+        // 3. Delete
+        if ($gameModel->delete($id)) {
+            header("Location: index.php?action=seller_dashboard&msg=deleted");
+        } else {
+            echo "Error deleting game.";
+        }
     }
 }
 ?>

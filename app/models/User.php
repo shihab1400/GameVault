@@ -72,14 +72,7 @@ class User {
         return $stmt;
     }
 
-    // Block/Unblock User
-    public function toggleStatus($id, $status) {
-        $query = "UPDATE " . $this->table . " SET is_active = :status WHERE id = :id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':status', $status);
-        $stmt->bindParam(':id', $id);
-        return $stmt->execute();
-    }
+    
     // Add this to app/models/User.php
 
     // Get User by ID
@@ -113,5 +106,35 @@ class User {
 
         return $stmt->execute();
     }
+    // Toggle User Status (Ban/Unban)
+    public function toggleStatus($id) {
+        // We use IF() logic to prevent NULL errors
+        // "If active is 1, set to 0. Else, set to 1."
+        $query = "UPDATE " . $this->table . " 
+                  SET is_active = IF(is_active = 1, 0, 1) 
+                  WHERE id = :id";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
+    }
+    // Login User
+    public function login($email, $password) {
+        // We use SELECT * to make sure we get the 'is_active' column
+        $query = "SELECT * FROM " . $this->table . " WHERE email = :email";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+        
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Verify password
+        if ($row && password_verify($password, $row['password'])) {
+            return $row; // Returns the full user array (including is_active)
+        }
+        return false;
+    }
+    
 }
 ?>
