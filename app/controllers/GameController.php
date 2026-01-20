@@ -3,6 +3,7 @@ include_once __DIR__ . '/../config/Database.php';
 include_once __DIR__ . '/../models/Game.php';
 include_once __DIR__ . '/../models/Order.php';
 include_once __DIR__ . '/../models/Review.php';
+include_once __DIR__ . '/../models/Coupon.php';
 
 class GameController {
 
